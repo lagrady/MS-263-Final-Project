@@ -2,6 +2,8 @@ import numpy as np
 from scipy import stats
 import pandas as pd
 import xarray as xr
+import fp_plotting as fpp
+from physoce import tseries as ts
 import datetime
 import os
 
@@ -65,6 +67,37 @@ def therm_data_merge(equipment, year, d):
         # one all-encompassing dataframe
     return base_df
 
+def therm_pd_to_xr(data, depth):
+    '''Take the dataframe created from 'therm_data_merge' function and convert it into an analysis friendly xarray dataset.
+
+    EXAMPLE: To convert a dataframe 'df' from adcp_data_merge into an xarray dataset 'ds'
+    df = adcp_data_merge('ADCP', 2000)
+    ds = adcp_pd_to_xr(df)
+
+    VARIABLES:
+    df - the dataframe created from adcp_data_merge'''
+
+    # Create an array of unique values of 'date_time' and 'height' df
+    # These arrays are used as the dimensions of the array when df is converted to an xarray dataset
+    unique_datetime = np.unique(data['date_time'])
+    date_time = pd.to_datetime(unique_datetime, utc= False)
+    unique_depth = depth
+
+    # Create an xarray dataset using the pivoted velocity components using the unique date_time and height values as the dimensions
+    ds = xr.Dataset({'temperature': (('time', 'depth'), data.iloc[:,1:])},
+                       {'time': date_time.values, 'depth':unique_depth})
+    return ds
+
+def xr_therm_analysis(ds, time_int, dt, lp_filter=40):
+    ds = ds.resample(time=str(time_int)).mean()
+    
+    t_filt = ts.pl64(ds.temperature, dt, T = lp_filter)
+    t_dat_arr = xr.Dataset({'temperature_filtered': (('time', 'depth'), t_filt)},
+                       {'time': ds['time'], 'depth':ds['depth']})
+    ds = ds.assign(temperature_filtered = t_dat_arr.temperature_filtered)
+
+    return ds
+
 def adcp_data_merge(equipment, year):
     '''Take the PISCO adcp data from a designated year and merge all months of data into a single, continuous dataframe.
 
@@ -105,10 +138,11 @@ def adcp_data_merge(equipment, year):
                              , 9:'data_quality', 10:'eastward', 11:'northward', 12:'upwards', 13:'errorvelocity', 14:'flag', 15:'unknown'})
     df1 = df1.drop(columns=['unknown'])
     df1 = df1[(df1['height']<22)]
+    df1 = df1.drop_duplicates(subset=['date_time', 'height'], keep='first')
 
     return df1
 
-def adcp_pd_to_xr(df):
+def adcp_pd_to_xr(data):
     '''Take the dataframe created from 'adcp_data_merge' function and convert it into an analysis friendly xarray dataset.
 
     EXAMPLE: To convert a dataframe 'df' from adcp_data_merge into an xarray dataset 'ds'
@@ -120,20 +154,64 @@ def adcp_pd_to_xr(df):
 
     # Create an array of unique values of 'date_time' and 'height' df
     # These arrays are used as the dimensions of the array when df is converted to an xarray dataset
-    unique_datetime = np.unique(df['date_time'])
-    unique_height = np.unique(df['height'])
+    unique_datetime = np.unique(data['date_time'])
+    date_time = pd.to_datetime(unique_datetime, utc= False)
+    unique_depth = np.unique(data['depth'])
 
     # Use pd.pivot to manipulate df so that all velocity components (eastward, northward, upwards) are properly sorted
     # into their associated height in the water column
-    pivoted_eastward = df.pivot(index='date_time',columns='height',values='eastward')
-    pivoted_northward = df.pivot(index='date_time',columns='height',values='northward')
-    pivoted_upwards = df.pivot(index='date_time',columns='height',values='upwards')
-    pivoted_intensity = df.pivot(index='date_time',columns='height',values='intensity')
+    pivoted_eastward = data.pivot(index='date_time',columns='depth',values='eastward')
+    pivoted_northward = data.pivot(index='date_time',columns='depth',values='northward')
+    pivoted_upwards = data.pivot(index='date_time',columns='depth',values='upwards')
 
     # Create an xarray dataset using the pivoted velocity components using the unique date_time and height values as the dimensions
-    ds = xr.Dataset({'northward': (('time', 'height'), pivoted_northward),
-                         'eastward': (('time', 'height'), pivoted_eastward),
-                        'upwards': (('time', 'height'), pivoted_upwards),
-                        'intensity': (('time', 'height'), pivoted_intensity)},
-                       {'time': unique_datetime, 'height':unique_height})
+    ds = xr.Dataset({'northward': (('time', 'depth'), pivoted_northward),
+                         'eastward': (('time', 'depth'), pivoted_eastward)},
+                       {'time': date_time.values, 'depth':unique_depth})
     return ds
+
+def xr_adcp_analysis(ds, time_int, dt, lp_filter=40):
+    ds = ds.resample(time=str(time_int)).mean()
+    
+    n_filt = ts.pl64(ds.northward, dt, T = lp_filter)
+    nf_dat_arr = xr.Dataset({'northward_filtered': (('time', 'depth'), n_filt)},
+                       {'time': ds['time'], 'depth':ds['depth']})
+    ds = ds.assign(northward_filtered = nf_dat_arr.northward_filtered)
+    e_filt = ts.pl64(ds.eastward, dt, T = lp_filter)
+    ef_dat_arr = xr.Dataset({'eastward_filtered': (('time', 'depth'), e_filt)},
+                       {'time': ds['time'], 'depth':ds['depth']})
+    ds = ds.assign(eastward_filtered = ef_dat_arr.eastward_filtered)
+    
+    north_da = ds.northward_filtered.mean(axis=1)
+    ds = ds.assign(north_da = north_da)
+    east_da = ds.eastward_filtered.mean(axis=1)
+    ds = ds.assign(east_da = east_da)
+    
+    theta,major,minor = fpp.princax(ds.east_da, ds.north_da)
+    crossshore,alongshore = fpp.rot(ds.eastward_filtered, ds.northward_filtered,-theta-90)
+    
+    ds = ds.assign(alongshore = alongshore)
+    ds = ds.assign(crossshore = crossshore)
+    
+    da_v = ds.alongshore.mean(axis=1)
+    ds = ds.assign(alongshore_da = da_v)
+    da_u = ds.crossshore.mean(axis=1)
+    ds = ds.assign(crossshore_da = da_u)
+    
+    return ds
+
+def depth_average(ds):
+    da_ds = ds.mean(axis=1)
+    da_df = da_ds.to_dataframe()
+    da_df['date_time'] = ds['time']
+    ref_df = pd.DataFrame({"date_time" : pd.date_range(str(year) + '-01-01 00:01', str(year+1) + '-01-01 00:01', tz='UTC', freq = '2T')})
+    ref_df = pd.merge(ref_df, da_df, how='outer', on='date_time')
+    
+    return ref_df
+
+def df_date_sel(data, start_date, end_date):
+    mask = (data['date_time'] >= str(start_date)) & (data['date_time'] <= str(end_date))
+    new_df = data.iloc[:,:].loc[mask]
+    
+    return new_df
+
