@@ -89,13 +89,14 @@ def spec_analysis(data, samp_freq = 720, window = 'raw', unit = 'units', title =
     
         plt.figure(figsize=(10,4))
         plt.loglog(fp,Sp,'b')
-        x = 10
-        plt.plot(np.array([x,x]), 10*np.array([x2_lower,x2_upper]),'k-')
+        x = samp_freq/10
+        y = upper_y/1000
+        plt.plot(np.array([x,x]), y*np.array([x2_lower,x2_upper]),'k-')
         plt.xlabel('frequency [cpd]')
         plt.ylabel('PSD [' + str(unit) + '$^2$ cpd$^{-1}$]')
         plt.title(str(title))
         plt.ylim([lower_y, upper_y])
-    return fp, Sp
+        return fp, Sp
         
     elif window == str('boxcar1'):
         edof = 8
@@ -104,13 +105,14 @@ def spec_analysis(data, samp_freq = 720, window = 'raw', unit = 'units', title =
     
         plt.figure(figsize=(10,4))
         plt.loglog(f3,S3,'r')
-        x = 10
-        plt.plot(np.array([x,x]), 10*np.array([x2_lower,x2_upper]),'k-')
+        x = samp_freq/10
+        y = upper_y/1000
+        plt.plot(np.array([x,x]), y*np.array([x2_lower,x2_upper]),'k-')
         plt.xlabel('frequency [cpd]')
         plt.ylabel('PSD [' + str(unit) + '$^2$ cpd$^{-1}$]')
         plt.title(str(title))
         plt.ylim([lower_y, upper_y])
-    return f3, S3
+        return f3, S3
         
     elif window == str('boxcar2'):
         edof = 8
@@ -119,13 +121,14 @@ def spec_analysis(data, samp_freq = 720, window = 'raw', unit = 'units', title =
     
         plt.figure(figsize=(10,4))
         plt.loglog(f4,S4,'g')
-        x = 10
-        plt.plot(np.array([x,x]), 10*np.array([x2_lower,x2_upper]),'k-')
+        x = samp_freq/10
+        y = upper_y/1000
+        plt.plot(np.array([x,x]), y*np.array([x2_lower,x2_upper]),'k-')
         plt.xlabel('frequency [cpd]')
         plt.ylabel('PSD [' + str(unit) + '$^2$ cpd$^{-1}$]')
         plt.title(str(title))
         plt.ylim([lower_y, upper_y])
-    return f4, S4
+        return f4, S4
         
     elif window == str('hamming1'):
         edof = 8 * 2.5164
@@ -134,13 +137,14 @@ def spec_analysis(data, samp_freq = 720, window = 'raw', unit = 'units', title =
     
         plt.figure(figsize=(10,4))
         plt.loglog(f5,S5,'m')
-        x = 10
-        plt.plot(np.array([x,x]), 10*np.array([x2_lower,x2_upper]),'k-')
+        x = samp_freq/10
+        y = upper_y/1000
+        plt.plot(np.array([x,x]), y*np.array([x2_lower,x2_upper]),'k-')
         plt.xlabel('frequency [cpd]')
         plt.ylabel('PSD [' + str(unit) + '$^2$ cpd$^{-1}$]')
         plt.title(str(title))
         plt.ylim([lower_y, upper_y])
-    return f5, S5
+        return f5, S5
         
     elif window == str('hamming2'):
         edof = 8 * 2.5164
@@ -149,13 +153,14 @@ def spec_analysis(data, samp_freq = 720, window = 'raw', unit = 'units', title =
     
         plt.figure(figsize=(10,4))
         plt.loglog(f3,S3,'r')
-        x = 10
-        plt.plot(np.array([x,x]), 10*np.array([x2_lower,x2_upper]),'k-')
+        x = samp_freq/10
+        y = upper_y/1000
+        plt.plot(np.array([x,x]), y*np.array([x2_lower,x2_upper]),'k-')
         plt.xlabel('frequency [cpd]')
         plt.ylabel('PSD [' + str(unit) + '$^2$ cpd$^{-1}$]')
         plt.title(str(title))
         plt.ylim([lower_y, upper_y])
-    return f6, S6
+        return f6, S6
         
     else :
         plt.figure(figsize=(10,4))
