@@ -1,5 +1,9 @@
 This is Logan Grady's final project for MS 263, spring 2021
 
+Repository Layout:
+- Code contains the main project notebook 'final_project.ipynb', as well as all .py files with all custom functions used in the project
+- Figures contains .PNG files of all figures produced in the project
+
 Data information:
 
 All data is from the PISCO SWC001 mooring placed in Stillwater Cove. This data and all metadata is publicy accessable on https://search.dataone.org/data. To find the specific 
