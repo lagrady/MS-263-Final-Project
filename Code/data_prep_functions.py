@@ -27,7 +27,10 @@ def therm_data_merge(equipment, year, d):
     INPUTS:
     equipment - the name of the directory in which the years of data are stored
     year - the name of the directory in which the raw data files are stored
-    d - a list of integers that correspond to the depths of the thermistors along the mooring'''
+    d - a list of integers that correspond to the depths of the thermistors along the mooring
+    
+    OUTPUT:
+    A pandas dataframe with columns for date_time and temperatures for all values in the 'depth' array'''
 
     # Create a variable for the list of depths from 'd'
     depth = d
@@ -89,6 +92,22 @@ def therm_pd_to_xr(data, depth):
     return ds
 
 def xr_therm_analysis(ds, time_int, dt, lp_filter=40):
+    '''Takes the xarray dataset produced from therm_pd_to_xr and creates filtered temperature variables.
+    
+    INPUTS:
+    ds: dataset produced from adcp_pd_to_xr
+    time_int: the desired time interval you wish to average your adcp samples over in od.datetime format 
+    - ex: 1M (1 month), 1H (1 hour), 30T (30 minutes)
+    dt: the sampling frequency in hours 
+    - ex: 30 minute sampling frequency is 1/2
+    lp_filter: the lower bound for a low pass filter
+    - ex: a value of 40 would filter out any variability under a timescale of 40 hours
+    
+    OUTPUT:
+    An xarray dataset with dimension time and depth with variables:
+    - Resampled temperature with specified time interval
+    - Temperature with specified low-pass filter'''
+    
     ds = ds.resample(time=str(time_int)).mean()
     
     t_filt = ts.pl64(ds.temperature, dt, T = lp_filter)
@@ -171,6 +190,25 @@ def adcp_pd_to_xr(data):
     return ds
 
 def xr_adcp_analysis(ds, time_int, dt, lp_filter=40):
+    '''Takes the dataset output by adcp_pd_to_xr and produces necessary variables for principal component analysis. Filters and averages out data,
+    converts vectors to alongshore and across shore velocities, also creates depth averaged velocity variables.
+    
+    INPUTS:
+    ds: dataset produced from adcp_pd_to_xr
+    time_int: the desired time interval you wish to average your adcp samples over in od.datetime format 
+    - ex: 1M (1 month), 1H (1 hour), 30T (30 minutes)
+    dt: the sampling frequency in hours 
+    - ex: 30 minute sampling frequency is 1/2
+    lp_filter: the lower bound for a low pass filter
+    - ex: a value of 40 would filter out any variability under a timescale of 40 hours
+    
+    OUTPUT:
+    - An xarray dataset with dimensions of time and depth and variables:
+        - low pass filtered northward and eastward velocity
+        - depth averaged northward and eastward velocity
+        - alongshore and across shore velocities
+        - depth averaged alongshore and across shore velocities'''
+    
     ds = ds.resample(time=str(time_int)).mean()
     
     n_filt = ts.pl64(ds.northward, dt, T = lp_filter)
@@ -200,16 +238,22 @@ def xr_adcp_analysis(ds, time_int, dt, lp_filter=40):
     
     return ds
 
-def depth_average(ds):
-    da_ds = ds.mean(axis=1)
-    da_df = da_ds.to_dataframe()
-    da_df['date_time'] = ds['time']
-    ref_df = pd.DataFrame({"date_time" : pd.date_range(str(year) + '-01-01 00:01', str(year+1) + '-01-01 00:01', tz='UTC', freq = '2T')})
-    ref_df = pd.merge(ref_df, da_df, how='outer', on='date_time')
-    
-    return ref_df
 
 def df_date_sel(data, start_date, end_date):
+    '''Select specific dates to extract from a pandas dataframe.
+    
+    REQUIREMENTS:
+    - Must have a column called date_time which is a type datetime[ns]
+    - Must be a pandas dataframe (xarray has its own method for extracting specific dates)
+    
+    INPUTS:
+    data: a pandas dataframe with a date_time column
+    start_date/end_date: the start and end dates that you want extracted from your dataframe
+    
+    OUTPUT:
+    - A new pandas dataframe which has all the same columns as the original dataframe, but it's
+    only the range of dates you specified'''
+    
     mask = (data['date_time'] >= str(start_date)) & (data['date_time'] <= str(end_date))
     new_df = data.iloc[:,:].loc[mask]
     

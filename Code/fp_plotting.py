@@ -8,71 +8,28 @@ from scipy.signal import periodogram
 from scipy.signal import welch
 from scipy.stats import chi2
 import os
-
-def depth_pcol(base_df, title):
-    depth = ['0m','5m','13m','21m']
-    
-    #month_int = [0,  22320,  42480,  64800,  86400, 108720, 130320, 152640,
-       #174960, 196560, 218880, 240480]
-    #month = ['January', 'February', 'March', 'April', 'May','June','July','August','September','October','November','December']
-    temp_df = base_df.iloc[:, 1:]
-    temp_arr = temp_df.to_numpy()
-    temp_arr_t = temp_arr.T
-    plt.figure(figsize=(10,4))
-    plt.pcolor(base_df['date_time'], len(depth), temp_arr_t)
-    plt.tight_layout()
-    plt.colorbar(label = 'Temperature (C)')
-    plt.gca().invert_yaxis()
-    #plt.xticks(ticks = month_int[0:(end_month_num-start_month_num+1)], labels=month[start_month_num-1:end_month_num], rotation = 20)
-    plt.xticks(rotation = 20)
-    plt.yticks(ticks = np.arange(.5, len(depth)+.5, 1), labels=depth)
-    plt.xlabel('Date')
-    plt.ylabel('Depth (meters)')
-    plt.title(str(title))
-    plt.show()
-
-def temp_line(base_df, title):
-    plt.figure(figsize=(10,4))
-    plt.plot(base_df['date_time'], base_df['temp_c0'], '-y')
-    plt.plot(base_df['date_time'], base_df['temp_c5'], '-r')        
-    plt.plot(base_df['date_time'], base_df['temp_c13'], '-b')
-    plt.plot(base_df['date_time'], base_df['temp_c21'], '-k')
-    plt.legend(['0m', '5m', '13m', '21m'],loc='lower right')
-    plt.xlabel('Date')
-    plt.ylabel('Temperature (C)')
-    plt.xticks(rotation = 20)
-    plt.title(str(title))
-    
-def avg_temp_line(base_df, title, start_month_num = 1, end_month_num = 12):
-    month_int = [0,  22320,  42480,  64800,  86400, 108720, 130320, 152640,
-       174960, 196560, 218880, 240480]
-    month = ['January', 'February', 'March', 'April', 'May','June','July','August','September','October','November','December']
-    if end_month_num == 12:
-        sample_size = np.arange(month_int[start_month_num-1],month_int[end_month_num-1])
-        plt.figure(figsize=(10,4))
-        plt.plot(sample_size, base_df['temp_c0'].iloc[month_int[start_month_num-1]:month_int[end_month_num-1]], '-y')
-        plt.plot(sample_size, base_df['temp_c5'].iloc[month_int[start_month_num-1]:month_int[end_month_num-1]], '-r')        
-        plt.plot(sample_size, base_df['temp_c13'].iloc[month_int[start_month_num-1]:month_int[end_month_num-1]], '-b')
-        plt.plot(sample_size, base_df['temp_c21'].iloc[month_int[start_month_num-1]:month_int[end_month_num-1]], '-k')
-        plt.legend(['0m', '5m', '13m', '21m'],loc='lower right')
-        plt.xlabel('Month')
-        plt.ylabel('Temperature (C)')
-        plt.title(str(title))
-        plt.xticks(ticks = month_int[(start_month_num - 1):(end_month_num)], labels=month[start_month_num-1:end_month_num], rotation = 20)
-    else:
-        sample_size = np.arange(month_int[start_month_num-1],month_int[end_month_num])
-        plt.figure(figsize=(10,4))
-        plt.plot(sample_size, base_df['temp_c0'].iloc[month_int[start_month_num-1]:month_int[end_month_num]], '-y')
-        plt.plot(sample_size, base_df['temp_c5'].iloc[month_int[start_month_num-1]:month_int[end_month_num]], '-r')
-        plt.plot(sample_size, base_df['temp_c13'].iloc[month_int[start_month_num-1]:month_int[end_month_num]], '-b')
-        plt.plot(sample_size, base_df['temp_c21'].iloc[month_int[start_month_num-1]:month_int[end_month_num]], '-k')
-        plt.legend(['0m', '5m', '13m', '21m'],loc='lower right')
-        plt.xlabel('Month')
-        plt.ylabel('Temperature (C)')
-        plt.title(str(title))
-        plt.xticks(ticks = month_int[(start_month_num - 1):(end_month_num)], labels=month[start_month_num-1:end_month_num], rotation = 20)
     
 def spec_analysis(data, samp_freq = 720, window = 'raw', unit = 'units', title = 'Spectral Analysis', lower_y=.00001, upper_y=1000):
+    '''Takes the data and applies the specified window to generate a periodogram with a 95% confidence interval bar based on the window.
+    Also returns the frequency range and variance power.
+    
+    REQUIREMENTS:
+    - Data must be continous and not contain any NA or NaN values, regardless if it is a pandas dataframe, xarray dataset, or numpy array
+    
+    INPUTS:
+    data: a continuous array of data with no NaN values
+    samp_freq: the sample frequency of the data
+    window: the specified window to filter the periodogram
+        - currently there is only raw, boxcar1, boxcar2, hamming1, hamming2
+    unit: a string of the units of your data, use purely for plot labelling
+    title: a string for the title of your plot
+    lower_y/upper_y: the upper and lower bounds of the plots y-axis
+    
+    OUTPUTS:
+    - A periodogram with the specified parameters
+    - the frequency range used for the x-axis
+    - the variance power used for the y-axis
+    '''
     #data = data.dropna()
     N = len(data)
     fp,Sp = periodogram(data, fs=samp_freq)
@@ -174,41 +131,6 @@ def spec_analysis(data, samp_freq = 720, window = 'raw', unit = 'units', title =
         plt.title(str(title))
         plt.legend(['raw','pre-whitened','segment length = N/4','segment length = N/2, Hamming','segment length = N/4, Hamming'],loc='lower left')
         plt.ylim([lower_y, upper_y])
-
-def vector_3d(base_df, year):
-    fig = plt.figure(figsize= (8,15))
-
-    ax = fig.add_subplot(2, 2, 1, projection='3d')
-    ax.scatter3D(base_df['eastward'], base_df['northward'], base_df['upwards'], c=base_df['upwards'], cmap='viridis')
-    ax.set_ylabel('Northward velocity [m/s]')
-    ax.set_zlabel('Upward velocity [m/s]')
-    ax.view_init(0, 0)
-    fig.suptitle('Depth averaged current velocity - ' + str(year),x=.5, y=.8, fontsize=16)
-
-    ax = fig.add_subplot(2, 2, 2, projection='3d')
-    ax.scatter3D(base_df['eastward'], base_df['northward'], base_df['upwards'], c=base_df['upwards'], cmap='viridis')
-    ax.set_xlabel('Eastward velocity [m/s]')
-    ax.set_zlabel('Upward velocity [m/s]')
-    ax.view_init(0, 85)
-
-    ax = fig.add_subplot(1, 2, 2, projection='3d')
-    p = ax.scatter3D(base_df['eastward'], base_df['northward'], base_df['upwards'], c=base_df['upwards'], cmap='viridis')
-    ax.set_xlabel('Eastward velocity [m/s]')
-    ax.set_ylabel('Northward velocity [m/s]')
-    ax.view_init(90, 90)
-
-    plt.tight_layout()
-    plt.show()
-
-def vector_2d(base_df, year):
-    plt.figure(figsize=(10,4))
-    plt.plot(base_df['date_time'],base_df['eastward'])
-    plt.plot(base_df['date_time'],base_df['northward'])
-    plt.xlabel('Date')
-    plt.ylabel('Current velocity [m/s]')
-    plt.xticks(rotation = 20)
-    plt.title('Depth averaged current velocity - ' + str(year))
-    plt.legend(['eastward','northward','upward'])
     
 def princax(u,v=None):
     '''
@@ -275,7 +197,18 @@ rot(1,0,90) returns (0,1)
     vr = np.imag(wr)
     return ur,vr
 
-def rot_vector(x, y, year):
+def rot_vector(x, y, title):
+    '''Takes vector data x and y, finds the principle axes angle, then applies the angle to the original
+    vectors in order to make a new plot that is rotated along principle axes.
+    
+    INPUTS:
+    x: the x-axis variable
+    y: the y-axis variable
+    title: the desired title for the set of plots
+    
+    OUTPUTS:
+    A scatterplot containing the original data, and a new scatterplot containing the rotated data'''
+    
     theta,major,minor = princax(x,y)
     rot_x, rot_y = rot(x, y, -theta-90)
     
@@ -287,7 +220,7 @@ def rot_vector(x, y, year):
     plt.axhline(y=0,c='k')
     plt.xlabel('Eastward velocity [m/s]')
     plt.ylabel('Northward velocity [m/s]')
-    plt.title('Geographic velocity - ' + str(year))
+    plt.title(str(title))
 
     plt.subplot(122)
     plt.plot(rot_x, rot_y,'.')
@@ -296,8 +229,104 @@ def rot_vector(x, y, year):
     plt.axhline(y=0,c='k')
     plt.xlabel('Cross shore velocity [m/s]')
     plt.ylabel('Alongshore velocity [m/s]')
-    plt.title('Velocity rotated along principle axes')
+    plt.title(str(title) + ' rotated along principle axes')
     plt.tight_layout()
     plt.show()
     
-    return base_df
+### THESE FUNCTIONS ARE UNUSED BUT MAY COME IN HANDY LATER
+# def vector_3d(base_df, year):
+#     fig = plt.figure(figsize= (8,15))
+
+#     ax = fig.add_subplot(2, 2, 1, projection='3d')
+#     ax.scatter3D(base_df['eastward'], base_df['northward'], base_df['upwards'], c=base_df['upwards'], cmap='viridis')
+#     ax.set_ylabel('Northward velocity [m/s]')
+#     ax.set_zlabel('Upward velocity [m/s]')
+#     ax.view_init(0, 0)
+#     fig.suptitle('Depth averaged current velocity - ' + str(year),x=.5, y=.8, fontsize=16)
+
+#     ax = fig.add_subplot(2, 2, 2, projection='3d')
+#     ax.scatter3D(base_df['eastward'], base_df['northward'], base_df['upwards'], c=base_df['upwards'], cmap='viridis')
+#     ax.set_xlabel('Eastward velocity [m/s]')
+#     ax.set_zlabel('Upward velocity [m/s]')
+#     ax.view_init(0, 85)
+
+#     ax = fig.add_subplot(1, 2, 2, projection='3d')
+#     p = ax.scatter3D(base_df['eastward'], base_df['northward'], base_df['upwards'], c=base_df['upwards'], cmap='viridis')
+#     ax.set_xlabel('Eastward velocity [m/s]')
+#     ax.set_ylabel('Northward velocity [m/s]')
+#     ax.view_init(90, 90)
+
+#     plt.tight_layout()
+#     plt.show()
+
+# def vector_2d(base_df, year):
+#     plt.figure(figsize=(10,4))
+#     plt.plot(base_df['date_time'],base_df['eastward'])
+#     plt.plot(base_df['date_time'],base_df['northward'])
+#     plt.xlabel('Date')
+#     plt.ylabel('Current velocity [m/s]')
+#     plt.xticks(rotation = 20)
+#     plt.title('Depth averaged current velocity - ' + str(year))
+#     plt.legend(['eastward','northward','upward'])
+    # def depth_pcol(base_df, title):
+#     depth = ['0m','5m','13m','21m']
+    
+#     #month_int = [0,  22320,  42480,  64800,  86400, 108720, 130320, 152640,
+#        #174960, 196560, 218880, 240480]
+#     #month = ['January', 'February', 'March', 'April', 'May','June','July','August','September','October','November','December']
+#     temp_df = base_df.iloc[:, 1:]
+#     temp_arr = temp_df.to_numpy()
+#     temp_arr_t = temp_arr.T
+#     plt.figure(figsize=(10,4))
+#     plt.pcolor(base_df['date_time'], len(depth), temp_arr_t)
+#     plt.tight_layout()
+#     plt.colorbar(label = 'Temperature (C)')
+#     plt.gca().invert_yaxis()
+#     #plt.xticks(ticks = month_int[0:(end_month_num-start_month_num+1)], labels=month[start_month_num-1:end_month_num], rotation = 20)
+#     plt.xticks(rotation = 20)
+#     plt.yticks(ticks = np.arange(.5, len(depth)+.5, 1), labels=depth)
+#     plt.xlabel('Date')
+#     plt.ylabel('Depth (meters)')
+#     plt.title(str(title))
+#     plt.show()
+
+# def temp_line(base_df, title):
+#     plt.figure(figsize=(10,4))
+#     plt.plot(base_df['date_time'], base_df['temp_c0'], '-y')
+#     plt.plot(base_df['date_time'], base_df['temp_c5'], '-r')        
+#     plt.plot(base_df['date_time'], base_df['temp_c13'], '-b')
+#     plt.plot(base_df['date_time'], base_df['temp_c21'], '-k')
+#     plt.legend(['0m', '5m', '13m', '21m'],loc='lower right')
+#     plt.xlabel('Date')
+#     plt.ylabel('Temperature (C)')
+#     plt.xticks(rotation = 20)
+#     plt.title(str(title))
+    
+# def avg_temp_line(base_df, title, start_month_num = 1, end_month_num = 12):
+#     month_int = [0,  22320,  42480,  64800,  86400, 108720, 130320, 152640,
+#        174960, 196560, 218880, 240480]
+#     month = ['January', 'February', 'March', 'April', 'May','June','July','August','September','October','November','December']
+#     if end_month_num == 12:
+#         sample_size = np.arange(month_int[start_month_num-1],month_int[end_month_num-1])
+#         plt.figure(figsize=(10,4))
+#         plt.plot(sample_size, base_df['temp_c0'].iloc[month_int[start_month_num-1]:month_int[end_month_num-1]], '-y')
+#         plt.plot(sample_size, base_df['temp_c5'].iloc[month_int[start_month_num-1]:month_int[end_month_num-1]], '-r')        
+#         plt.plot(sample_size, base_df['temp_c13'].iloc[month_int[start_month_num-1]:month_int[end_month_num-1]], '-b')
+#         plt.plot(sample_size, base_df['temp_c21'].iloc[month_int[start_month_num-1]:month_int[end_month_num-1]], '-k')
+#         plt.legend(['0m', '5m', '13m', '21m'],loc='lower right')
+#         plt.xlabel('Month')
+#         plt.ylabel('Temperature (C)')
+#         plt.title(str(title))
+#         plt.xticks(ticks = month_int[(start_month_num - 1):(end_month_num)], labels=month[start_month_num-1:end_month_num], rotation = 20)
+#     else:
+#         sample_size = np.arange(month_int[start_month_num-1],month_int[end_month_num])
+#         plt.figure(figsize=(10,4))
+#         plt.plot(sample_size, base_df['temp_c0'].iloc[month_int[start_month_num-1]:month_int[end_month_num]], '-y')
+#         plt.plot(sample_size, base_df['temp_c5'].iloc[month_int[start_month_num-1]:month_int[end_month_num]], '-r')
+#         plt.plot(sample_size, base_df['temp_c13'].iloc[month_int[start_month_num-1]:month_int[end_month_num]], '-b')
+#         plt.plot(sample_size, base_df['temp_c21'].iloc[month_int[start_month_num-1]:month_int[end_month_num]], '-k')
+#         plt.legend(['0m', '5m', '13m', '21m'],loc='lower right')
+#         plt.xlabel('Month')
+#         plt.ylabel('Temperature (C)')
+#         plt.title(str(title))
+#         plt.xticks(ticks = month_int[(start_month_num - 1):(end_month_num)], labels=month[start_month_num-1:end_month_num], rotation = 20)
